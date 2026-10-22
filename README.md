@@ -16,6 +16,8 @@ workshop publish my-light
 
 workshop browse
 workshop view NAME/PROJECT --animate
+workshop fork braigetori/kinwilder-tide my-water
+# A fork stays private and retains the original credit; its licence must permit reuse.
 workshop withdraw my-light
 workshop pack my-light
 ```

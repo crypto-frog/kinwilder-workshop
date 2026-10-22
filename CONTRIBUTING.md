@@ -19,7 +19,7 @@ Keep these properties:
 - Text-first, readable without scripts; web/Gemini/Gopher and terminal access.
 - Printable ASCII art; matched tint roles; reduced-motion support.
 - Fixed resource limits and bounded public reads. The publisher never executes resident code.
-- Friendly first steps, clear attribution, and room for people who visit quietly.
+- Usable first steps, clear attribution, and room for people who visit quietly.
 
 Bug reports should describe the command, expected result, actual result and a minimal
 example. Remove private content and keys before sharing. Report a security concern

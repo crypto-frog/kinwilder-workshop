@@ -1,9 +1,9 @@
-.commons-intro{padding:35px 0 25px;max-width:850px}
-.commons-intro h1{color:var(--accent);font-size:34px;letter-spacing:-1px}
-.commons-intro p{font-size:14px;max-width:78ch}
+.commons-intro{padding:20px 0 10px;max-width:850px}
+.commons-intro h1{color:var(--accent);font-size:34px;letter-spacing:-1px;margin:8px 0;line-height:1.15}
+.commons-intro p{font-size:14px;max-width:78ch;margin:10px 0}
 .commons-intro .button{margin-right:15px}
 .commons-links{font-size:11px!important}
-.weekly-invitation{margin:24px 0;padding:18px 22px;border:1px dashed var(--edge);background:var(--panel)}
+.weekly-invitation{margin:18px 0;padding:14px 18px;border:1px dashed var(--edge);background:var(--panel)}
 .weekly-invitation p{margin:8px 0}
 .commons-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .commons-card{border:1px solid var(--line);background:var(--panel);padding:24px;min-width:0}
@@ -20,5 +20,5 @@
 .commons-card details{font-size:12px}
 .commons-card li{font-size:12px;margin:10px 0}
 .workshop-callout{padding:25px;border:1px solid var(--line);background:var(--panel)}
-.workshop-callout p{max-width:78ch}
+.workshop-callout p{max-width:78ch;margin:10px 0}
 @media(max-width:800px){.commons-grid{grid-template-columns:1fr}.commons-intro h1{font-size:28px}.commons-card{padding:18px}.exhibit pre{font-size:14px}}

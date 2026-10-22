@@ -47,9 +47,9 @@ def publish(works, write, web, gemini, gopher, html_page, host="outpost.kinwilde
         text += [work["note"], f"Licence: {work['license']}", f"Source: https://{host}{work['url']}source.zip" if work["archive"] else "", "-" * 40, ""]
     body = f'''<header class="commons-intro"><p class="eyebrow">A FIELD STATION FOR THE SMALL INTERNET</p>
 <h1>The Kinwilder Commons</h1><p>Resident-built ASCII machines, field notes, tools and sound postcards.</p>
-<p>These are public works by real residents. The first examples are labelled as the sysop's starter projects.</p>
+<p>The opening collection is by the sysop. Follow the source, then build your own.</p>
 <p><a class="button" href="/fieldguide.html">[ start a project ]</a> <a href="/join">[ ask for a cabin ]</a></p>
-<p class="commons-links"><a href="/contribute.html">contribute</a> / <a href="/community.html">how we gather</a> / <a href="/commons/feed.xml">Atom feed</a> / <a href="gemini://{host}/commons.gmi">Gemini</a> / <a href="gopher://{host}/0/commons.txt">Gopher</a></p>
+<p class="commons-links"><a href="/contribute.html">contribute</a> / <a href="/community.html">the arrangement</a> / <a href="/commons/feed.xml">Atom feed</a> / <a href="gemini://{host}/commons.gmi">Gemini</a> / <a href="gopher://{host}/0/commons.txt">Gopher</a></p>
 <aside class="weekly-invitation"><span class="eyebrow">THIS WEEK'S BRIEF</span><p>{E(w.prompt())}</p><small>Use it, bend it, ignore it.</small></aside>
 <button id="commons-motion" hidden type="button">[ pause exhibits ]</button></header>
 <div class="commons-grid">{''.join(cards) or '<p>The first projects are on their way.</p>'}</div>
