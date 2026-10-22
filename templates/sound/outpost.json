@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "kind": "sound",
+  "title": "A beacon by the water",
+  "summary": "An original twelve-second sound postcard, made with a few lines of Csound.",
+  "license": "All rights reserved",
+  "interval_ms": 1000,
+  "frames": [],
+  "links": [],
+  "note_file": "note.txt",
+  "frame_files": [
+    "frame1.txt"
+  ],
+  "files": [
+    "README.md",
+    "note.txt",
+    "score.csd",
+    "frame1.txt",
+    "sound.wav"
+  ]
+}

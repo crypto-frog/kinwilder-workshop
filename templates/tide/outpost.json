@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "ascii",
+  "title": "A pocket tide",
+  "summary": "Two frames, a little water, and reflected light.",
+  "license": "All rights reserved",
+  "interval_ms": 1000,
+  "frames": [],
+  "links": [],
+  "frame_files": [
+    "frame1.txt",
+    "frame2.txt"
+  ],
+  "note": "An imagined tide, never a forecast. Add a boat, a shore or a quiet visitor.",
+  "files": [
+    "README.md",
+    "frame1.txt",
+    "frame2.txt"
+  ]
+}

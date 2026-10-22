@@ -1,0 +1,24 @@
+.commons-intro{padding:35px 0 25px;max-width:850px}
+.commons-intro h1{color:var(--accent);font-size:34px;letter-spacing:-1px}
+.commons-intro p{font-size:14px;max-width:78ch}
+.commons-intro .button{margin-right:15px}
+.commons-links{font-size:11px!important}
+.weekly-invitation{margin:24px 0;padding:18px 22px;border:1px dashed var(--edge);background:var(--panel)}
+.weekly-invitation p{margin:8px 0}
+.commons-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.commons-card{border:1px solid var(--line);background:var(--panel);padding:24px;min-width:0}
+.commons-card h2{color:var(--accent);font-size:20px;margin:5px 0 12px}
+.commons-card>p{font-size:12px}
+.exhibit{min-height:190px;display:grid;place-items:center;margin:20px 0;overflow:auto}
+.exhibit pre{border:0;background:none;padding:0;margin:0;font:16px/1.15 ui-monospace,Consolas,"Liberation Mono",monospace;letter-spacing:0;font-variant-ligatures:none}
+.ink-a{color:var(--accent)}.ink-b{color:var(--warm)}.ink-c{color:var(--signal)}.ink-d{color:var(--spark)}.ink-plain{color:var(--ink)}
+.work-licence{color:var(--muted);font-size:10px!important}
+.work-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;padding:12px}
+.work-downloads{display:flex;gap:10px;flex-wrap:wrap;font-size:11px}
+.work-terminal{font-size:10px!important;overflow-wrap:anywhere;border-top:1px dashed var(--line);padding-top:12px}
+.work-terminal code{font-size:10px}
+.commons-card details{font-size:12px}
+.commons-card li{font-size:12px;margin:10px 0}
+.workshop-callout{padding:25px;border:1px solid var(--line);background:var(--panel)}
+.workshop-callout p{max-width:78ch}
+@media(max-width:800px){.commons-grid{grid-template-columns:1fr}.commons-intro h1{font-size:28px}.commons-card{padding:18px}.exhibit pre{font-size:14px}}

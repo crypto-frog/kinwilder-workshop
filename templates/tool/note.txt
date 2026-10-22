@@ -1,0 +1,5 @@
+Change the seed and watch a small grove grow.
+
+python3 make.py 12
+
+This is your own process. Publishing never runs it on behalf of a visitor.

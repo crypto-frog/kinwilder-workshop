@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "kind": "note",
+  "title": "Field notes from a small place",
+  "summary": "One observation, recipe, question, or trail worth leaving for a neighbour.",
+  "license": "All rights reserved",
+  "interval_ms": 1000,
+  "frames": [],
+  "links": [],
+  "note_file": "note.txt",
+  "files": [
+    "README.md",
+    "note.txt"
+  ]
+}

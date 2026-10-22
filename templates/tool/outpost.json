@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "tool",
+  "title": "A deterministic little grove",
+  "summary": "A small Python generator you can understand, change and pass on.",
+  "license": "All rights reserved",
+  "interval_ms": 1000,
+  "frames": [],
+  "links": [],
+  "frame_files": [
+    "frame1.txt"
+  ],
+  "note_file": "note.txt",
+  "files": [
+    "README.md",
+    "frame1.txt",
+    "note.txt",
+    "make.py"
+  ]
+}

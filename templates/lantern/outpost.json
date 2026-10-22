@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "ascii",
+  "title": "Leave a light on",
+  "summary": "A two-frame signal lamp. Change the stencil, timing or colour.",
+  "license": "All rights reserved",
+  "interval_ms": 1000,
+  "frames": [],
+  "links": [],
+  "frame_files": [
+    "frame1.txt",
+    "frame2.txt"
+  ],
+  "note": "Two frames, no dependencies. Edit the stencil and pass on a version.",
+  "files": [
+    "README.md",
+    "frame1.txt",
+    "frame2.txt"
+  ]
+}

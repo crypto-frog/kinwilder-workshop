@@ -1,0 +1,313 @@
+#!/usr/bin/python3
+"""Kinwilder Workshop: make things, publish them, trade source."""
+import argparse
+import grp
+import json
+import os
+import pwd
+import shutil
+import stat
+import sys
+import tempfile
+import time
+import subprocess
+import urllib.request
+import zipfile
+import io
+from pathlib import Path
+from types import SimpleNamespace
+
+sys.path.insert(0, os.environ.get("OUTPOST_LIB", "/usr/local/lib/outpost"))
+import workshoplib as w
+
+HOME = Path(os.environ.get("WORKSHOP_HOME", str(Path.home())))
+PROJECTS = HOME / "workshop"
+PUBLIC = HOME / "public_html/workshop"
+TEMPLATES = Path(os.environ.get("WORKSHOP_TEMPLATES", "/usr/local/share/outpost/workshop/templates"))
+
+
+def slug(value):
+    if not w.SLUG.fullmatch(value):
+        raise ValueError("Use 2-24 lowercase letters/digits/hyphens, starting with a letter")
+    return value
+
+
+def project(name):
+    path = PROJECTS / slug(name)
+    if path.is_symlink() or not path.is_dir():
+        raise ValueError("No ordinary project directory there; start with workshop new")
+    return path
+
+
+def describe(path):
+    raw = (path / "outpost.json").read_bytes()
+    if len(raw) > w.MAX_BYTES:
+        raise ValueError("outpost.json is too large")
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError("outpost.json must contain an object")
+    directives = {}
+
+    def local_text(filename, limit):
+        if not isinstance(filename, str) or not w.FILE.fullmatch(filename):
+            raise ValueError("Project inputs must be plain filenames")
+        source = path / filename
+        info = source.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_size > limit:
+            raise ValueError(f"{filename}: use your own bounded regular text file")
+        return source.read_text()
+
+    if "note_file" in data:
+        data["note"] = local_text(data["note_file"], 5000)
+        directives["note_file"] = data["note_file"]
+    if "frame_files" in data:
+        files = data["frame_files"]
+        if not isinstance(files, list) or not 1 <= len(files) <= 4:
+            raise ValueError("Choose one to four frame_files")
+        data["frames"] = [local_text(name, 2048).splitlines() for name in files]
+        directives["frame_files"] = files
+    return dict(w.validate(data), **directives)
+
+
+def new(kind, name):
+    path = PROJECTS / slug(name)
+    PROJECTS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        raise ValueError("That project already exists; nothing overwritten")
+    source = TEMPLATES / kind
+    if not source.is_dir():
+        raise ValueError("That starter is not installed")
+    shutil.copytree(source, path)
+    path.chmod(0o700)
+    print(f"Created private project: {path}\nEdit README.md and outpost.json. Nothing is published yet.\n"
+          f"Check: workshop check {name}\nShare when ready: workshop publish {name}")
+
+
+def publish(name):
+    path = project(name)
+    data = describe(path)
+    PUBLIC.mkdir(mode=0o755, parents=True, exist_ok=True)
+    if PUBLIC.is_symlink():
+        raise ValueError("The workshop public directory cannot be a symlink")
+    dest = PUBLIC / name
+    if dest.is_symlink() or dest.exists() and not (dest / ".workshop-managed").is_file():
+        raise ValueError("That public directory is not managed by Workshop; nothing overwritten")
+    tmp = Path(tempfile.mkdtemp(prefix=f".{name}-", dir=PUBLIC))
+    try:
+        (tmp / "outpost.json").write_text(json.dumps(data, indent=2) + "\n")
+        (tmp / ".workshop-managed").write_text("1\n")
+        exports = ["outpost.json"]
+        for filename in data["files"]:
+            src = path / filename
+            if not src.exists():
+                continue
+            info = src.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_size > 8 * 1024 * 1024:
+                raise ValueError(f"{filename}: publish only your own regular files, at most 8 MiB each")
+            shutil.copyfile(src, tmp / filename, follow_symlinks=False)
+            exports.append(filename)
+        with zipfile.ZipFile(tmp / "source.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for filename in exports:
+                archive.write(tmp / filename, f"{name}/{filename}")
+        author = pwd.getpwuid(os.getuid()).pw_name
+        if "index.html" not in exports:
+            (tmp / "index.html").write_text(w.project_page(data, author, name))
+        for file in tmp.iterdir():
+            file.chmod(0o644)
+        tmp.chmod(0o755)
+        if dest.exists():
+            history = HOME / ".workshop-history"
+            history.mkdir(mode=0o700, exist_ok=True)
+            dest.rename(history / f"{name}-{time.time_ns()}")
+        tmp.rename(dest)
+    finally:
+        if tmp.exists():
+            shutil.rmtree(tmp)
+    name = pwd.getpwuid(os.getuid()).pw_name
+    print(f"Published: https://outpost.kinwilder.com/~{name}/workshop/{dest.name}/outpost.json\n"
+          "The shared Commons refreshes within two minutes. Your private project is untouched.\n"
+          "Published files, notes and selected source downloads are public. Licence: " + data["license"])
+
+
+def withdraw(name):
+    dest = PUBLIC / slug(name)
+    if dest.is_symlink() or not (dest / ".workshop-managed").is_file():
+        raise ValueError("No Workshop-managed publication there")
+    history = HOME / ".workshop-history"
+    history.mkdir(mode=0o700, exist_ok=True)
+    dest.rename(history / f"{name}-withdrawn-{time.time_ns()}")
+    print("Public copy withdrawn and preserved in ~/.workshop-history.\nThe Commons clears its copy within two minutes.")
+
+
+def people():
+    try:
+        names = grp.getgrnam("residents").gr_mem
+    except KeyError:
+        names = [pwd.getpwuid(os.getuid()).pw_name]
+    result = []
+    for name in names:
+        try:
+            p = pwd.getpwnam(name)
+            home = HOME if p.pw_uid == os.getuid() and "WORKSHOP_HOME" in os.environ else p.pw_dir
+            result.append(SimpleNamespace(name=p.pw_name, uid=p.pw_uid, home=home))
+        except KeyError:
+            pass
+    return result
+
+
+def fork(reference, name):
+    residents = people()
+    work = next((item for item in w.collect(residents) if item["id"] == reference), None)
+    if not work or not work["archive"]:
+        raise ValueError("No public portable source with that name")
+    if work["license"] == "All rights reserved":
+        raise ValueError("Ask the author for permission; this work has no remix licence")
+    owner = next(person for person in residents if person.name == work["author"])
+    raw = w.read_owned(Path(owner.home) / "public_html/workshop" / work["slug"] / "source.zip", owner.uid, 8 * 1024 * 1024)
+    if raw is None:
+        raise ValueError("Source archive is no longer public")
+    dest = PROJECTS / slug(name)
+    PROJECTS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if dest.exists() or dest.is_symlink():
+        raise ValueError("That private project already exists")
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        members = archive.infolist()
+        if len(members) > 14 or sum(item.file_size for item in members) > 16 * 1024 * 1024:
+            raise ValueError("Source archive exceeds the project limit")
+        for item in members:
+            parts = item.filename.split("/")
+            mode = (item.external_attr >> 16) & 0o170000
+            if len(parts) != 2 or parts[0] != work["slug"] or not w.FILE.fullmatch(parts[1]) or mode not in (0, stat.S_IFREG) or item.file_size > 8 * 1024 * 1024:
+                raise ValueError("Unsafe path or file in source archive")
+        tmp = Path(tempfile.mkdtemp(prefix=".fork-", dir=PROJECTS))
+        try:
+            for item in members:
+                (tmp / item.filename.split("/")[1]).write_bytes(archive.read(item))
+            data = describe(tmp)
+            credit = f"\n\nRemixed from {work['title']} by ~{work['author']} ({work['license']}).\nhttps://outpost.kinwilder.com/commons/#{work['author']}-{work['slug']}\n"
+            if data.get("note_file"):
+                note = tmp / data["note_file"]
+                note.write_text(note.read_text()[:4000] + credit)
+            else:
+                data["note"] = data["note"][:4000] + credit
+            data.update(title=("After " + data["title"])[:80], license="All rights reserved")
+            (tmp / "outpost.json").write_text(json.dumps(data, indent=2) + "\n")
+            tmp.rename(dest)
+        finally:
+            if tmp.exists():
+                shutil.rmtree(tmp)
+    print(f"Private remix: {dest}\nOriginal credit preserved. Choose your own licence before publishing.")
+
+
+def browse(ref=None, animate=False):
+    works = w.collect(people())
+    if not ref:
+        for work in works:
+            print(f"{work['id']:<42} {work['kind']:<6} {work['title']}")
+        if not works:
+            print("No published work yet.")
+        print("\nSee: workshop view NAME/PROJECT   or   https://outpost.kinwilder.com/commons/")
+        return
+    work = next((item for item in works if item["id"] == ref), None)
+    if not work:
+        raise ValueError("No public work matches that name")
+    print(f"{work['title']} — {work['author']}\n{work['summary']}\nLicence: {work['license']}\n")
+    if work["frames"]:
+        if animate and sys.stdout.isatty() and os.environ.get("TERM") != "dumb":
+            print("Press Ctrl-C to stop.\n")
+            try:
+                for i in range(180):
+                    frame = work["frames"][i % len(work["frames"])]
+                    # Cursor movement is ours; resident text contains no controls.
+                    print("\n".join(frame), end="\n", flush=True)
+                    time.sleep(work["interval_ms"] / 1000)
+                    print(f"\033[{len(frame)}A", end="")
+            except KeyboardInterrupt:
+                print("\n")
+        else:
+            print("\n".join(work["frames"][0]))
+    print("\n" + work["note"])
+    for link in work["links"]:
+        print(f"\n{link['title']} — {link['url']}\n{link['note']}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command")
+    create = commands.add_parser("new", help="start a private project")
+    create.add_argument("kind", choices=("lantern", "tide", "note", "sound", "tool"))
+    create.add_argument("name", type=slug)
+    for command in ("check", "publish", "withdraw", "pack"):
+        sub = commands.add_parser(command)
+        sub.add_argument("name", type=slug)
+    commands.add_parser("list")
+    commands.add_parser("browse")
+    commands.add_parser("prompt")
+    feeds = commands.add_parser("feeds")
+    feeds.add_argument("--read", action="store_true", help="fetch the Commons feed and open sfeed")
+    view = commands.add_parser("view")
+    view.add_argument("reference")
+    view.add_argument("--animate", action="store_true")
+    remix = commands.add_parser("fork", help="make a private remix when its licence permits")
+    remix.add_argument("reference")
+    remix.add_argument("name", type=slug)
+    args = parser.parse_args()
+    if args.command == "new":
+        new(args.kind, args.name)
+    elif args.command == "check":
+        data = describe(project(args.name))
+        print(f"Ready: {data['title']} ({data['kind']}, {len(data['frames'])} frames). Still private until you publish.")
+    elif args.command == "publish":
+        publish(args.name)
+    elif args.command == "fork":
+        fork(args.reference, args.name)
+    elif args.command == "withdraw":
+        withdraw(args.name)
+    elif args.command == "pack":
+        path = project(args.name)
+        data = describe(path)
+        dest = HOME / f"{args.name}-{int(time.time())}.zip"
+        with zipfile.ZipFile(dest, "x", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name in ["outpost.json", *data["files"]]:
+                source = path / name
+                if source.is_file() and not source.is_symlink() and source.stat().st_size <= 8 * 1024 * 1024:
+                    archive.write(source, f"{args.name}/{name}")
+        dest.chmod(0o600)
+        print(f"Private portable copy: {dest}")
+    elif args.command == "list":
+        for path in sorted(PROJECTS.iterdir()) if PROJECTS.is_dir() else []:
+            if w.SLUG.fullmatch(path.name):
+                print(path.name + ("  [public copy]" if (PUBLIC / path.name / "outpost.json").is_file() else "  [private]"))
+    elif args.command in ("browse", "view"):
+        browse(getattr(args, "reference", None), getattr(args, "animate", False))
+    elif args.command == "prompt":
+        print(w.prompt() + "\n\nUse it, bend it, ignore it.")
+    elif args.command == "feeds":
+        if args.read:
+            cache = HOME / ".cache/workshop"
+            cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+            with urllib.request.urlopen("https://outpost.kinwilder.com/commons/feed.xml", timeout=20) as response:
+                feed = response.read(1048577)
+            if len(feed) > 1048576:
+                raise ValueError("Feed exceeds the one-MiB reader limit")
+            parsed = subprocess.run(["sfeed"], input=feed, capture_output=True, check=True).stdout
+            dest = cache / "commons"
+            dest.write_bytes(parsed); dest.chmod(0o600)
+            reader = "sfeed_curses" if sys.stdout.isatty() else "sfeed_plain"
+            subprocess.run([reader, str(dest)], check=True)
+        else:
+            print("Read the Commons on your own terms:\n  workshop feeds --read\n"
+                  "  https://outpost.kinwilder.com/commons/feed.xml\n\n"
+                  "Uses the installed sfeed reader. Nothing is fetched until you ask.")
+    else:
+        parser.print_help()
+        print("\nTry: workshop new lantern my-lantern\nRead the field guide: https://outpost.kinwilder.com/fieldguide.html")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        sys.exit(str(exc))
+    except (BrokenPipeError, KeyboardInterrupt):
+        sys.exit(1)

@@ -1,0 +1,4 @@
+A small original melody for an imagined shoreline.
+
+Run csound score.csd to make sound.wav, then inspect it with soxi.
+It belongs to your project until you decide to publish it.
